@@ -134,6 +134,12 @@ const adminPage = `
     .readonly-input { background-color: #f8fafc; border-color: #e2e8f0; cursor: not-allowed; }
     .error-message { font-size: 0.875rem; margin-top: 0.25rem; display: none; }
     .error-message.show { display: block; }
+    /*添加自动换行*/
+    .table-container tr > td:first-child {
+      max-width: 60vw;
+      overflow-wrap: break-word;
+      white-space: break-spaces;
+    } 
     
     /* Toast 样式 */
     .toast {
@@ -183,7 +189,7 @@ const adminPage = `
       </div>
     </div>
     
-    <div class="table-container bg-white rounded-lg overflow-hidden">
+    <div class="table-container bg-white rounded-lg overflow-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
