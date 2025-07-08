@@ -268,7 +268,12 @@ const adminPage = `
     .readonly-input { background-color: #f8fafc; border-color: #e2e8f0; cursor: not-allowed; }
     .error-message { font-size: 0.875rem; margin-top: 0.25rem; display: none; }
     .error-message.show { display: block; }
-    
+    /*添加自动换行*/
+    .table-container tr > td:first-child {
+      max-width: 60vw;
+      overflow-wrap: break-word;
+      white-space: break-spaces;
+    } 
     /* Toast 样式 */
     .toast {
       position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px;
@@ -317,7 +322,7 @@ const adminPage = `
       </div>
     </div>
     
-    <div class="table-container bg-white rounded-lg overflow-hidden">
+    <div class="table-container bg-white rounded-lg overflow-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -667,6 +672,70 @@ const adminPage = `
       return isValid;
     }
 
+    // 辅助函数：处理长备注内容(可用)
+    function formatNotes(notes, maxLength = 30) {
+      if (!notes) return '';
+      
+      if (notes.length <= maxLength) {
+        return '<div class="text-xs text-gray-500">' + notes + '</div>';
+      }
+      
+      const truncated = notes.substring(0, maxLength);
+      const noteId = 'note-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      
+      return '<div class="text-xs text-gray-500">' +
+               '<span id="' + noteId + '-short">' + truncated + '...' +
+                 '<button class="text-blue-600 hover:text-blue-800 ml-1 underline expand-note" data-target="' + noteId + '">展开</button>' +
+               '</span>' +
+               '<span id="' + noteId + '-full" class="hidden">' + notes +
+                 '<button class="text-blue-600 hover:text-blue-800 ml-1 underline collapse-note" data-target="' + noteId + '">收起</button>' +
+               '</span>' +
+             '</div>';
+    }
+
+    /* 辅助函数：处理长备注内容（自动换行版本）// 根据字符数计算大概的宽度（中文字符约1em，英文字符约0.6em）
+    function formatNotes(notes, charsPerLine = 30) {
+      if (!notes) return '';
+            
+      const estimatedWidth = charsPerLine * 0.8; // 取平均值
+      
+      return '<div class="text-xs text-gray-500 break-words leading-4" style="width: ' + estimatedWidth + 'em;">' + 
+               notes + 
+             '</div>';
+    }*/
+
+    /*高级版本：限制显示行数并提供展开功能
+    function formatNotesWithLineLimit(notes, maxLines = 3) {
+      if (!notes) return '';
+      
+      const noteId = 'note-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      
+      return '<div class="text-xs text-gray-500 max-w-xs">' +
+               '<div id="' + noteId + '-short" class="break-words leading-4" style="display: -webkit-box; -webkit-line-clamp: ' + maxLines + '; -webkit-box-orient: vertical; overflow: hidden;">' + 
+                 notes + 
+               '</div>' +
+               '<div id="' + noteId + '-full" class="break-words leading-4 hidden">' + 
+                 notes + 
+               '</div>' +
+               '<button class="text-blue-600 hover:text-blue-800 text-xs mt-1 underline expand-note" data-target="' + noteId + '" id="' + noteId + '-btn">展开</button>' +
+             '</div>';
+    }*/
+
+    /* 替代方案：使用工具提示显示完整内容
+    function formatNotesWithTooltip(notes, maxLength = 50) {
+      if (!notes) return '';
+      
+      if (notes.length <= maxLength) {
+        return '<div class="text-xs text-gray-500">' + notes + '</div>';
+      }
+      
+      const truncated = notes.substring(0, maxLength);
+      
+      return '<div class="text-xs text-gray-500 cursor-help" title="' + notes + '">' + 
+               truncated + '...' +
+             '</div>';
+    }*/
+             
     // 获取所有订阅并按到期时间排序
     async function loadSubscriptions() {
       try {
@@ -730,7 +799,7 @@ const adminPage = `
           row.innerHTML =
             '<td class="px-6 py-4 whitespace-nowrap">' +
               '<div class="text-sm font-medium text-gray-900">' + subscription.name + '</div>' +
-              (subscription.notes ? '<div class="text-xs text-gray-500">' + subscription.notes + '</div>' : '') +
+              formatNotes(subscription.notes, 50) +
             '</td>' +
             '<td class="px-6 py-4 whitespace-nowrap">' +
               '<div class="text-sm text-gray-900">' +
@@ -778,6 +847,43 @@ const adminPage = `
         document.querySelectorAll('.test-notify').forEach(button => {
           button.addEventListener('click', testSubscriptionNotification);
         });
+
+        //添加展开/收起功能的事件监听器
+        document.addEventListener('click', function(e) {
+          if (e.target.classList.contains('expand-note')) {
+            const target = e.target.getAttribute('data-target');
+            document.getElementById(target + '-short').classList.add('hidden');
+            document.getElementById(target + '-full').classList.remove('hidden');
+          }
+          
+          if (e.target.classList.contains('collapse-note')) {
+            const target = e.target.getAttribute('data-target');
+            document.getElementById(target + '-short').classList.remove('hidden');
+            document.getElementById(target + '-full').classList.add('hidden');
+          }
+        });
+
+        /* 添加展开/收起功能的事件监听器（适用于限制行数版本）
+        document.addEventListener('click', function(e) {
+          if (e.target.classList.contains('expand-note')) {
+            const target = e.target.getAttribute('data-target');
+            const shortDiv = document.getElementById(target + '-short');
+            const fullDiv = document.getElementById(target + '-full');
+            const button = document.getElementById(target + '-btn');
+            
+            if (shortDiv.style.display === 'none') {
+              // 当前是展开状态，要收起
+              shortDiv.style.display = '-webkit-box';
+              fullDiv.classList.add('hidden');
+              button.textContent = '展开';
+            } else {
+              // 当前是收起状态，要展开
+              shortDiv.style.display = 'none';
+              fullDiv.classList.remove('hidden');
+              button.textContent = '收起';
+            }
+          }
+        });*/
       } catch (error) {
         console.error('加载订阅失败:', error);
         const tbody = document.getElementById('subscriptionsBody');
@@ -785,7 +891,7 @@ const adminPage = `
         showToast('加载订阅列表失败', 'error');
       }
     }
-    
+   
     async function testSubscriptionNotification(e) {
         const button = e.target.tagName === 'BUTTON' ? e.target : e.target.parentElement;
         const id = button.dataset.id;
