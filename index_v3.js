@@ -1346,6 +1346,22 @@ async function getConfig(env) {
     const data = await env.SUBSCRIPTIONS_KV.get('config');
     const config = data ? JSON.parse(data) : {};
     
+    // 自动根据配置的通知渠道生成 ENABLED_NOTIFIERS 数组
+    const enabledNotifiers = [];
+    
+    // 检查 Telegram 配置
+    if (config.TG_BOT_TOKEN && config.TG_CHAT_ID) {
+      enabledNotifiers.push('telegram');
+    }
+    
+    // 检查 NotifyX 配置
+    if (config.NOTIFYX_API_KEY) {
+      enabledNotifiers.push('notifyx');
+    }
+    
+    // 如果手动设置了 ENABLED_NOTIFIERS，则使用手动设置的
+    const finalEnabledNotifiers = config.ENABLED_NOTIFIERS || enabledNotifiers;
+    
     return {
       ADMIN_USERNAME: config.ADMIN_USERNAME || 'admin',
       ADMIN_PASSWORD: config.ADMIN_PASSWORD || 'password',
@@ -1353,9 +1369,11 @@ async function getConfig(env) {
       TG_BOT_TOKEN: config.TG_BOT_TOKEN || '',
       TG_CHAT_ID: config.TG_CHAT_ID || '',
       NOTIFYX_API_KEY: config.NOTIFYX_API_KEY || '',
-      NOTIFICATION_TYPE: config.NOTIFICATION_TYPE || 'notifyx'
+      NOTIFICATION_TYPE: config.NOTIFICATION_TYPE || 'notifyx',
+      ENABLED_NOTIFIERS: finalEnabledNotifiers
     };
   } catch (error) {
+    console.error('[配置] 获取配置失败:', error);
     return {
       ADMIN_USERNAME: 'admin',
       ADMIN_PASSWORD: 'password',
@@ -1363,7 +1381,8 @@ async function getConfig(env) {
       TG_BOT_TOKEN: '',
       TG_CHAT_ID: '',
       NOTIFYX_API_KEY: '',
-      NOTIFICATION_TYPE: 'notifyx'
+      NOTIFICATION_TYPE: 'notifyx',
+      ENABLED_NOTIFIERS: []
     };
   }
 }
@@ -1813,6 +1832,17 @@ async function checkExpiringSubscriptions(env) {
         commonContent += statusText + '\n\n';
       }
       
+        // 添加 title 定义
+      
+      const title = `订阅提醒 - ${new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date())}`;   //const title = `订阅到期提醒 - ${new Date().toLocaleDateString('zh-CN')}`; //const title = '订阅到期提醒'
+      const logPrefix = '[定时任务]';
+      const config = await getConfig(env);
+
       await sendNotificationToAllChannels(title, commonContent, config, logPrefix);
 
     } else {
